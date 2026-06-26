@@ -1,7 +1,7 @@
 #include "string.h"
 
-char * strchr(char *str, char tok) {
-	char *cur = str;
+char * strchr(const char *str, const char tok) {
+	const char *cur = str;
 	while (*cur) {
 		if (*cur == tok)
 			return cur;
@@ -11,8 +11,8 @@ char * strchr(char *str, char tok) {
 	return 0;
 }
 
-char * strrchr(char *str, char tok) {
-	char *cur = str + strlen(str) - 1;
+char * strrchr(const char *str, const char tok) {
+	const char *cur = str + strlen(str) - 1;
 
 	while (cur >= str) {
 		if (*cur == tok)
@@ -23,8 +23,8 @@ char * strrchr(char *str, char tok) {
 	return 0;
 }
 
-char * strstr(char *haystack, char *needle) {
-	char *cur = haystack;
+char * strstr(const char *haystack, const char *needle) {
+	const char *cur = haystack;
 	size_t needleLen = strlen(needle), i;
 
 	while (*cur) {
@@ -40,4 +40,13 @@ strstr_leave:
 	}
 
 	return 0;
+}
+
+int strcmp(const char *s1, const char *s2) {
+	size_t s1_len = strlen(s1);
+	size_t s2_len = strlen(s2);
+
+	if (s1_len != s2_len)
+		return -1;
+	return memcmp(s1, s2, s1_len);
 }

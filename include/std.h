@@ -19,4 +19,6 @@ int printf(const char *, ...);
 
 char * strerror(int);
 
+int memcmp(const void *, const void *, size_t);
+
 #endif

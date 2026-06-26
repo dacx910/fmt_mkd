@@ -4,37 +4,37 @@
 #define BUF_SIZE 0x400
 
 int parse(int mdFile) {
-	char buf[BUF_SIZE], *codeBlockUpper, *codeBlockLower, *cur;
-	int open = 0;
+	char buf[BUF_SIZE], *upper, *lower;
+	int foundPrelude = 0;
 	size_t nBytes = 0;
 
 	while (nBytes = read(mdFile, buf, BUF_SIZE), nBytes > 0) {
-		cur = buf;
-		do {
-			codeBlockUpper = strstr(cur, "```");
-
-			if (codeBlockUpper) {
-				if (open) {
-					if (write(stdout, buf, (codeBlockUpper+4)-buf) < 0)
-						fprintf(stderr, "ERROR: buf = %d, cBU = %d\n", buf, codeBlockUpper);
-					open = 0;
-					cur = codeBlockUpper+4;
-					continue;
-				}
-
-				codeBlockLower = strstr(codeBlockUpper+3, "```");
-				if (codeBlockLower) {
-					if (write(stdout, codeBlockUpper, (codeBlockLower+4)-codeBlockUpper) < 0)
-						fprintf(stderr, "ERROR: cBU = %d, cBL = %d\n", codeBlockUpper, codeBlockLower);
-					cur = codeBlockLower+4;
-				} else {
-					if (write(stdout, codeBlockUpper, nBytes-(codeBlockUpper-buf)) < 0)
-						fprintf(stderr, "ERROR: cBU = %d, nBytes = %d, buf = %d\n", codeBlockUpper, nBytes, buf);
-					open = 1;
-					break;
-				}
+		if (foundPrelude == 2) {
+			write(stdout, buf, nBytes);
+		} else if (foundPrelude == 1) {
+			lower = strstr(buf, "---");
+			if (lower) {
+				foundPrelude = 2;
+				write(stdout, lower+4, nBytes-(lower-buf+4));
 			}
-		} while (codeBlockUpper && nBytes == BUF_SIZE);
+		} else {
+			upper = strstr(buf, "---");
+			if (upper) {
+				lower = strstr(upper+3, "---");
+				if (upper != buf)
+					error("[WARN]: First 3 bytes was not '---', ignoring content before prelude.\n");
+				if (lower) {
+					write(stdout, lower+4, nBytes-(lower-upper+4));
+					foundPrelude = 2;
+				} else {
+					foundPrelude = 1;
+				}
+			} else {
+				error("[WARN]: Could not find prelude within first buffer, skipping.\n");
+				write(stdout, buf, nBytes);
+				foundPrelude = 2;
+			}
+		}
 
 		if (nBytes < BUF_SIZE)
 			break; // Avoid extra syscall

@@ -265,3 +265,12 @@ char * strerror(int num) {
 			return utoa(num);
 	}
 }
+
+int memcmp(const void *buf1, const void *buf2, size_t n) {
+	size_t i;
+	for (i = 0; i < n; ++i) {
+		if (*(char*)(buf1+i) != *(char*)(buf2+i))
+			return *(char*)(buf1+i)-*(char*)(buf2+i);
+	}
+	return 0;
+}
