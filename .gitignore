@@ -1,0 +1,3 @@
+fmt_mkd
+*.o
+build/
