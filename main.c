@@ -5,12 +5,29 @@
 
 int parse(int mdFile) {
 	char buf[BUF_SIZE], *upper, *lower;
-	int foundPrelude = 0;
+	int foundPrelude = 0, openCodeBlock = 0;
 	size_t nBytes = 0;
 
-	while (nBytes = read(mdFile, buf, BUF_SIZE), nBytes > 0) {
+	while (nBytes = read(mdFile, buf, BUF_SIZE-1), nBytes > 0) {
+		buf[nBytes] = '\0';
 		if (foundPrelude == 2) {
-			write(stdout, buf, nBytes);
+			upper = strstr(buf, "```");
+			if (upper) {
+				if (openCodeBlock) {
+					openCodeBlock = 0;
+					write(stdout, upper+4, nBytes-(upper-buf+4));
+				} else {
+					if (upper > buf)
+						write(stdout, buf, upper-buf);
+					lower = strstr(buf+3, "```");
+					if (lower)
+						write(stdout, lower+4, nBytes-(lower+4-upper));
+					else
+						openCodeBlock = 1;
+				}
+			} else if (!openCodeBlock) {
+				write(stdout, buf, nBytes);
+			}
 		} else if (foundPrelude == 1) {
 			lower = strstr(buf, "---");
 			if (lower) {
@@ -20,7 +37,8 @@ int parse(int mdFile) {
 		} else {
 			upper = strstr(buf, "---");
 			if (upper) {
-				lower = strstr(upper+3, "---");
+				if (upper+3)
+				lower = strstr(upper+3, "---"); // OOB read when upper is the last bit of a string.
 				if (upper != buf)
 					error("[WARN]: First 3 bytes was not '---', ignoring content before prelude.\n");
 				if (lower) {
@@ -35,7 +53,6 @@ int parse(int mdFile) {
 				foundPrelude = 2;
 			}
 		}
-
 		if (nBytes < BUF_SIZE)
 			break; // Avoid extra syscall
 	}
