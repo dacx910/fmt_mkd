@@ -4,56 +4,67 @@
 #define BUF_SIZE 0x400
 
 int parse(int mdFile) {
-	char buf[BUF_SIZE], *upper, *lower;
+	char buf[BUF_SIZE], *upper, *lower, *searchPos;
 	int foundPrelude = 0, openCodeBlock = 0;
 	size_t nBytes = 0;
 
 	while (nBytes = read(mdFile, buf, BUF_SIZE-1), nBytes > 0) {
 		buf[nBytes] = '\0';
+		searchPos = buf;
 		if (foundPrelude == 2) {
-			upper = strstr(buf, "```");
-			if (upper) {
-				if (openCodeBlock) {
-					openCodeBlock = 0;
-					write(stdout, upper+4, nBytes-(upper-buf+4));
-				} else {
-					if (upper > buf)
-						write(stdout, buf, upper-buf);
-					lower = strstr(buf+3, "```");
-					if (lower)
-						write(stdout, lower+4, nBytes-(lower+4-upper));
-					else
-						openCodeBlock = 1;
+			do {
+code_parse_loop:
+				upper = strstr(searchPos, "```");
+				if (upper) { // searchPos contains some code
+					if (openCodeBlock) {
+						searchPos = upper+4;
+						openCodeBlock = 0;
+					} else {
+						if (searchPos < upper) {
+							write(stdout, searchPos, upper-searchPos);
+						}
+						lower = strstr(upper+3, "```");
+						if (lower) {
+							searchPos = lower+4;
+						} else {
+							openCodeBlock = 1;
+							break;
+						}
+					}
+				} else if (openCodeBlock) { // searchPos must contain all code
+					break;
+				} else { // searchPos must contain all valid text
+					write(stdout, searchPos, nBytes-(searchPos-buf));
+					break;
 				}
-			} else if (!openCodeBlock) {
-				write(stdout, buf, nBytes);
-			}
+			} while (searchPos < buf+nBytes);
 		} else if (foundPrelude == 1) {
 			lower = strstr(buf, "---");
 			if (lower) {
 				foundPrelude = 2;
-				write(stdout, lower+4, nBytes-(lower-buf+4));
+				searchPos = lower+4;
+				goto code_parse_loop;
 			}
 		} else {
 			upper = strstr(buf, "---");
 			if (upper) {
-				if (upper+3)
-				lower = strstr(upper+3, "---"); // OOB read when upper is the last bit of a string.
+				lower = strstr(upper+3, "---");
 				if (upper != buf)
 					error("[WARN]: First 3 bytes was not '---', ignoring content before prelude.\n");
 				if (lower) {
-					write(stdout, lower+4, nBytes-(lower-upper+4));
 					foundPrelude = 2;
+					searchPos = lower+4;
+					goto code_parse_loop;
 				} else {
 					foundPrelude = 1;
 				}
 			} else {
 				error("[WARN]: Could not find prelude within first buffer, skipping.\n");
-				write(stdout, buf, nBytes);
 				foundPrelude = 2;
+				goto code_parse_loop;
 			}
 		}
-		if (nBytes < BUF_SIZE)
+		if (nBytes < BUF_SIZE-1)
 			break; // Avoid extra syscall
 	}
 	if (nBytes < 0) {
@@ -65,8 +76,8 @@ int parse(int mdFile) {
 }
 
 void usage(char *progName) {
-	printf("Usage: %s [OPTION]... [FILE]\n", progName);
-	puts("Removes code blocks and Hugo preludes, then performs a wordcount and analysis.\n"
+	fprintf(stderr, "Usage: %s [OPTION]... [FILE]\n", progName);
+	print(stderr, "Removes code blocks and Hugo preludes, then performs a wordcount and analysis.\n"
 		 "Example: fmt_mkd post.md\n\n"
 		
 		 "Options:\n"
